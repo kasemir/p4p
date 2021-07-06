@@ -1,0 +1,729 @@
+
+<!DOCTYPE html PUBLIC "-//W3C//DTD XHTML 1.0 Transitional//EN"
+  "http://www.w3.org/TR/xhtml1/DTD/xhtml1-transitional.dtd">
+
+<html xmlns="http://www.w3.org/1999/xhtml">
+  <head>
+    <meta http-equiv="X-UA-Compatible" content="IE=Edge" />
+    <meta http-equiv="Content-Type" content="text/html; charset=utf-8" />
+    <title>Working with Value and Type &#8212; P4P 3.5.4 documentation</title>
+    <link rel="stylesheet" href="_static/alabaster.css" type="text/css" />
+    <link rel="stylesheet" href="_static/pygments.css" type="text/css" />
+    <link rel="stylesheet" type="text/css" href="_static/graphviz.css" />
+    <script type="text/javascript" id="documentation_options" data-url_root="./" src="_static/documentation_options.js"></script>
+    <script type="text/javascript" src="_static/jquery.js"></script>
+    <script type="text/javascript" src="_static/underscore.js"></script>
+    <script type="text/javascript" src="_static/doctools.js"></script>
+    <script type="text/javascript" src="_static/language_data.js"></script>
+    <link rel="index" title="Index" href="genindex.html" />
+    <link rel="search" title="Search" href="search.html" />
+    <link rel="next" title="Server API" href="server.html" />
+    <link rel="prev" title="Common Types" href="nt.html" />
+   
+  <link rel="stylesheet" href="_static/custom.css" type="text/css" />
+  
+  <meta name="viewport" content="width=device-width, initial-scale=0.9, maximum-scale=0.9" />
+
+  </head><body>
+  
+
+    <div class="document">
+      <div class="documentwrapper">
+        <div class="bodywrapper">
+          <div class="body" role="main">
+            
+  <div class="section" id="working-with-value-and-type">
+<span id="valueapi"></span><h1>Working with Value and Type<a class="headerlink" href="#working-with-value-and-type" title="Permalink to this headline">¶</a></h1>
+<p>Each <a class="reference internal" href="#p4p.Value" title="p4p.Value"><code class="xref py py-class docutils literal notranslate"><span class="pre">Value</span></code></a> corresponds conceptually with a C/C++ struct in that it consists
+of zero or more data fields.  Values are strongly typed, with each Value having a corresponding
+<a class="reference internal" href="#p4p.Type" title="p4p.Type"><code class="xref py py-class docutils literal notranslate"><span class="pre">Type</span></code></a>.  Each field has a concrete type, which may in turn be a sub-structure.</p>
+<p>Further, each Value holds a bit mask which identifies fields which have “changed”.
+This bit mask is used during PVA protocol operations to select a subset of fields
+which will actually be transfered over the network.</p>
+<div class="section" id="working-with-type-and-value">
+<h2>Working with Type and Value<a class="headerlink" href="#working-with-type-and-value" title="Permalink to this headline">¶</a></h2>
+<p><a class="reference internal" href="#p4p.Value" title="p4p.Value"><code class="xref py py-class docutils literal notranslate"><span class="pre">Value</span></code></a> is initialized in two steps.
+First a <a class="reference internal" href="#p4p.Type" title="p4p.Type"><code class="xref py py-class docutils literal notranslate"><span class="pre">Type</span></code></a> describing the data structure is created,
+then the Value container is built, and optionally initialized.</p>
+<div class="highlight-default notranslate"><div class="highlight"><pre><span></span><span class="gp">&gt;&gt;&gt; </span><span class="kn">from</span> <span class="nn">p4p</span> <span class="k">import</span> <span class="n">Type</span><span class="p">,</span> <span class="n">Value</span>
+<span class="gp">&gt;&gt;&gt; </span><span class="n">T</span> <span class="o">=</span> <span class="n">Type</span><span class="p">([(</span><span class="s1">&#39;value&#39;</span><span class="p">,</span> <span class="s1">&#39;i&#39;</span><span class="p">)])</span>
+<span class="gp">&gt;&gt;&gt; </span><span class="n">V</span> <span class="o">=</span> <span class="n">Value</span><span class="p">(</span><span class="n">T</span><span class="p">,</span> <span class="p">{</span><span class="s1">&#39;value&#39;</span><span class="p">:</span><span class="mi">42</span><span class="p">})</span>
+</pre></div>
+</div>
+<p>Here a simple structure is defined with a single field ‘value’ which is a signed 32-bit integer.
+The created value initializes ‘value’ to 42.
+This Value can then be accessed with:</p>
+<div class="highlight-default notranslate"><div class="highlight"><pre><span></span><span class="gp">&gt;&gt;&gt; </span><span class="n">V</span><span class="o">.</span><span class="n">value</span>
+<span class="go">42</span>
+<span class="gp">&gt;&gt;&gt; </span><span class="n">V</span><span class="p">[</span><span class="s1">&#39;value&#39;</span><span class="p">]</span>
+<span class="go">42</span>
+<span class="gp">&gt;&gt;&gt; </span><span class="n">V</span><span class="o">.</span><span class="n">get</span><span class="p">(</span><span class="s1">&#39;value&#39;</span><span class="p">,</span> <span class="mi">111</span><span class="p">)</span>
+<span class="go">42</span>
+<span class="gp">&gt;&gt;&gt; </span><span class="n">V</span><span class="o">.</span><span class="n">get</span><span class="p">(</span><span class="s1">&#39;invalid&#39;</span><span class="p">,</span> <span class="mi">111</span><span class="p">)</span> <span class="c1"># uses default</span>
+<span class="go">111</span>
+</pre></div>
+</div>
+<p>Field values can also be changed</p>
+<div class="highlight-default notranslate"><div class="highlight"><pre><span></span><span class="gp">&gt;&gt;&gt; </span><span class="n">V</span><span class="o">.</span><span class="n">value</span> <span class="o">=</span> <span class="mi">43</span>
+<span class="gp">&gt;&gt;&gt; </span><span class="n">V</span><span class="p">[</span><span class="s1">&#39;value&#39;</span><span class="p">]</span> <span class="o">=</span> <span class="mi">43</span>
+</pre></div>
+</div>
+<div class="section" id="change-tracking">
+<span id="valchange"></span><h3>Change tracking<a class="headerlink" href="#change-tracking" title="Permalink to this headline">¶</a></h3>
+<p>Each <a class="reference internal" href="#p4p.Value" title="p4p.Value"><code class="xref py py-class docutils literal notranslate"><span class="pre">Value</span></code></a> maintains a mask marking which of its field have been initialized/changed.</p>
+<p>A newly created Value has no fields marked (empty mask).</p>
+<div class="highlight-default notranslate"><div class="highlight"><pre><span></span><span class="n">V</span> <span class="o">=</span> <span class="n">Value</span><span class="p">(</span><span class="n">T</span><span class="p">)</span>
+<span class="k">assert</span> <span class="n">V</span><span class="o">.</span><span class="n">asSet</span><span class="p">()</span><span class="o">==</span><span class="nb">set</span><span class="p">()</span>
+</pre></div>
+</div>
+<p>Initial values can be provided at construction.</p>
+<div class="highlight-default notranslate"><div class="highlight"><pre><span></span><span class="n">V</span> <span class="o">=</span> <span class="n">Value</span><span class="p">(</span><span class="n">T</span><span class="p">,</span> <span class="p">{</span><span class="s1">&#39;value&#39;</span><span class="p">:</span> <span class="mi">42</span><span class="p">})</span>
+<span class="k">assert</span> <span class="n">V</span><span class="o">.</span><span class="n">changed</span><span class="p">(</span><span class="s1">&#39;value&#39;</span><span class="p">)</span>
+<span class="k">assert</span> <span class="n">V</span><span class="o">.</span><span class="n">asSet</span><span class="p">()</span><span class="o">==</span><span class="nb">set</span><span class="p">(</span><span class="s1">&#39;value&#39;</span><span class="p">)</span>
+</pre></div>
+</div>
+<p>Assignment of a new value automatically marks a field as changed.</p>
+<div class="highlight-default notranslate"><div class="highlight"><pre><span></span><span class="n">V</span> <span class="o">=</span> <span class="n">Value</span><span class="p">(</span><span class="n">T</span><span class="p">)</span>
+<span class="k">assert</span> <span class="ow">not</span> <span class="n">V</span><span class="o">.</span><span class="n">changed</span><span class="p">(</span><span class="s1">&#39;value&#39;</span><span class="p">)</span>
+<span class="n">V</span><span class="o">.</span><span class="n">value</span> <span class="o">=</span> <span class="mi">42</span>
+<span class="k">assert</span> <span class="n">V</span><span class="o">.</span><span class="n">changed</span><span class="p">(</span><span class="s1">&#39;value&#39;</span><span class="p">)</span>
+</pre></div>
+</div>
+<p>The change mask can be cleared if necessary.  eg. when passing the same Value to SharedPV.post() several times.</p>
+<div class="highlight-default notranslate"><div class="highlight"><pre><span></span><span class="n">V</span> <span class="o">=</span> <span class="n">Value</span><span class="p">(</span><span class="n">T</span><span class="p">,</span> <span class="p">{</span><span class="s1">&#39;value&#39;</span><span class="p">:</span> <span class="mi">42</span><span class="p">})</span>
+<span class="k">assert</span> <span class="n">V</span><span class="o">.</span><span class="n">changed</span><span class="p">(</span><span class="s1">&#39;value&#39;</span><span class="p">)</span>
+<span class="n">V</span><span class="o">.</span><span class="n">unmark</span><span class="p">()</span>
+<span class="k">assert</span> <span class="ow">not</span> <span class="n">V</span><span class="o">.</span><span class="n">changed</span><span class="p">(</span><span class="s1">&#39;value&#39;</span><span class="p">)</span>
+</pre></div>
+</div>
+</div>
+</div>
+<div class="section" id="type-definitions">
+<span id="valuecodes"></span><h2>Type definitions<a class="headerlink" href="#type-definitions" title="Permalink to this headline">¶</a></h2>
+<p>The <code class="xref py py-mod docutils literal notranslate"><span class="pre">p4p.nt</span></code> module contains helpers to build common <a class="reference internal" href="#p4p.Type" title="p4p.Type"><code class="xref py py-class docutils literal notranslate"><span class="pre">Type</span></code></a> definitions.</p>
+<p>Structures are strongly typed.
+The type is specified with a code.
+Supported codes are given in the table below.</p>
+<p>Type specifier codes:</p>
+<table border="1" class="docutils">
+<colgroup>
+<col width="36%" />
+<col width="64%" />
+</colgroup>
+<thead valign="bottom">
+<tr class="row-odd"><th class="head">Code</th>
+<th class="head">Type</th>
+</tr>
+</thead>
+<tbody valign="top">
+<tr class="row-even"><td>?</td>
+<td>bool</td>
+</tr>
+<tr class="row-odd"><td>s</td>
+<td>unicode</td>
+</tr>
+<tr class="row-even"><td>b</td>
+<td>s8</td>
+</tr>
+<tr class="row-odd"><td>B</td>
+<td>u8</td>
+</tr>
+<tr class="row-even"><td>h</td>
+<td>s16</td>
+</tr>
+<tr class="row-odd"><td>H</td>
+<td>u16</td>
+</tr>
+<tr class="row-even"><td>i</td>
+<td>i32</td>
+</tr>
+<tr class="row-odd"><td>I</td>
+<td>u32</td>
+</tr>
+<tr class="row-even"><td>l</td>
+<td>i64</td>
+</tr>
+<tr class="row-odd"><td>L</td>
+<td>u64</td>
+</tr>
+<tr class="row-even"><td>f</td>
+<td>f32</td>
+</tr>
+<tr class="row-odd"><td>d</td>
+<td>f64</td>
+</tr>
+<tr class="row-even"><td>v</td>
+<td>variant</td>
+</tr>
+<tr class="row-odd"><td>U</td>
+<td>union</td>
+</tr>
+<tr class="row-even"><td>S</td>
+<td>struct</td>
+</tr>
+</tbody>
+</table>
+<div class="admonition note">
+<p class="first admonition-title">Note</p>
+<p class="last">Prefix with ‘a’ for “array of”.  For example, ‘ai’ is an array of signed 32-bit integers.</p>
+</div>
+<p>A <a class="reference internal" href="#p4p.Type" title="p4p.Type"><code class="xref py py-class docutils literal notranslate"><span class="pre">Type</span></code></a> is build with a list of tuples,
+where each tuple defines a field.</p>
+<p>For all type codes except struct ‘S’ and discriminating union ‘U’ only the type code is needed.</p>
+<div class="highlight-default notranslate"><div class="highlight"><pre><span></span><span class="n">T</span> <span class="o">=</span> <span class="n">Type</span><span class="p">([</span>
+   <span class="p">(</span><span class="s1">&#39;value&#39;</span><span class="p">,</span> <span class="s1">&#39;s&#39;</span><span class="p">),</span> <span class="c1"># string</span>
+   <span class="p">(</span><span class="s1">&#39;other&#39;</span><span class="p">,</span> <span class="s1">&#39;ad&#39;</span><span class="p">),</span> <span class="c1"># array of double floating</span>
+<span class="p">])</span>
+</pre></div>
+</div>
+<p>sub-structures and discriminating union have a nested tuple to fully define the field type.</p>
+<div class="highlight-default notranslate"><div class="highlight"><pre><span></span><span class="gp">&gt;&gt;&gt; </span><span class="n">T</span> <span class="o">=</span> <span class="n">Type</span><span class="p">([</span>
+<span class="go">   (&#39;value&#39;, &#39;s&#39;), # string</span>
+<span class="go">   (&#39;alarm&#39;, (&#39;S&#39;, None, [</span>
+<span class="go">       (&#39;severity&#39;, &#39;i&#39;),</span>
+<span class="go">       (&#39;status&#39;, &#39;i&#39;),</span>
+<span class="go">       (&#39;message&#39;, &#39;s&#39;),</span>
+<span class="go">   ])),</span>
+<span class="go">])</span>
+<span class="gp">&gt;&gt;&gt; </span><span class="n">V</span> <span class="o">=</span> <span class="n">Value</span><span class="p">(</span><span class="n">T</span><span class="p">,</span> <span class="p">{</span><span class="s1">&#39;alarm&#39;</span><span class="p">:{</span><span class="s1">&#39;severity&#39;</span><span class="p">:</span><span class="mi">0</span><span class="p">}})</span>
+<span class="gp">&gt;&gt;&gt; </span><span class="n">V</span><span class="o">.</span><span class="n">alarm</span><span class="o">.</span><span class="n">severity</span>
+<span class="go">0</span>
+<span class="gp">&gt;&gt;&gt; </span><span class="n">V</span><span class="o">.</span><span class="n">alarm</span><span class="p">[</span><span class="s1">&#39;severity&#39;</span><span class="p">]</span>
+<span class="go">0</span>
+<span class="gp">&gt;&gt;&gt; </span><span class="n">V</span><span class="p">[</span><span class="s1">&#39;alarm.severity&#39;</span><span class="p">]</span>
+<span class="go">0</span>
+</pre></div>
+</div>
+<p>Here a sub-structure ‘alarm’ is defined with three fields.</p>
+<p>A discriminating union is defined in the same manner.</p>
+<div class="highlight-default notranslate"><div class="highlight"><pre><span></span><span class="gp">&gt;&gt;&gt; </span><span class="n">V</span> <span class="o">=</span> <span class="n">Type</span><span class="p">([</span>
+<span class="go">   (&#39;value&#39;, (&#39;u&#39;, None, [</span>
+<span class="go">       (&#39;ival&#39;, &#39;i&#39;),</span>
+<span class="go">       (&#39;sval&#39;, &#39;s&#39;),</span>
+<span class="go">   ])),</span>
+<span class="go">])()</span>
+<span class="gp">&gt;&gt;&gt; </span><span class="n">V</span><span class="o">.</span><span class="n">value</span>
+<span class="go">None</span>
+<span class="gp">&gt;&gt;&gt; </span><span class="n">V</span><span class="o">.</span><span class="n">value</span> <span class="o">=</span> <span class="p">(</span><span class="s1">&#39;ival&#39;</span><span class="p">,</span> <span class="mi">42</span><span class="p">)</span> <span class="c1"># explicitly select union field name</span>
+<span class="gp">&gt;&gt;&gt; </span><span class="n">V</span><span class="o">.</span><span class="n">value</span>
+<span class="go">42</span>
+<span class="gp">&gt;&gt;&gt; </span><span class="n">V</span><span class="o">.</span><span class="n">value</span> <span class="o">=</span> <span class="p">(</span><span class="s1">&#39;sval&#39;</span><span class="p">,</span> <span class="s1">&#39;hello&#39;</span><span class="p">)</span>
+<span class="gp">&gt;&gt;&gt; </span><span class="n">V</span><span class="o">.</span><span class="n">value</span>
+<span class="go">u&#39;hello&#39;</span>
+<span class="gp">&gt;&gt;&gt; </span><span class="n">V</span><span class="o">.</span><span class="n">value</span> <span class="o">=</span> <span class="mi">43</span>   <span class="c1"># beware still using &#39;sval&#39; !!</span>
+<span class="gp">&gt;&gt;&gt; </span><span class="n">V</span><span class="o">.</span><span class="n">value</span>
+<span class="go">u&#39;43&#39;</span>
+</pre></div>
+</div>
+<div class="section" id="assigning-variant-and-union">
+<h3>Assigning variant and union<a class="headerlink" href="#assigning-variant-and-union" title="Permalink to this headline">¶</a></h3>
+<p>As the preceding example suggests, the rules for assigning values
+to variant and union fields can be surprising.</p>
+<p>The rules for assigning a variant are as follows:</p>
+<table border="1" class="docutils">
+<colgroup>
+<col width="29%" />
+<col width="71%" />
+</colgroup>
+<thead valign="bottom">
+<tr class="row-odd"><th class="head">value type</th>
+<th class="head">Action</th>
+</tr>
+</thead>
+<tbody valign="top">
+<tr class="row-even"><td>None</td>
+<td>clears current value</td>
+</tr>
+<tr class="row-odd"><td>Value</td>
+<td>Stores a structure</td>
+</tr>
+<tr class="row-even"><td>int</td>
+<td>signed 32-bit  (python 2.x only)</td>
+</tr>
+<tr class="row-odd"><td>long</td>
+<td>signed 64-bit</td>
+</tr>
+<tr class="row-even"><td>float</td>
+<td>64-bit floating</td>
+</tr>
+<tr class="row-odd"><td>bytes|unicode</td>
+<td>string</td>
+</tr>
+<tr class="row-even"><td>ndarray</td>
+<td>array of integer or floating</td>
+</tr>
+</tbody>
+</table>
+<p>Further, a variant union may be explicitly assigned with a specific scalar/array type
+using a tuple of a type specifier code and value.</p>
+<p>Other types throw an Exception.</p>
+<div class="highlight-default notranslate"><div class="highlight"><pre><span></span><span class="gp">&gt;&gt;&gt; </span><span class="n">V</span> <span class="o">=</span> <span class="n">Type</span><span class="p">([(</span><span class="s1">&#39;x&#39;</span><span class="p">,</span><span class="s1">&#39;v&#39;</span><span class="p">)])()</span>
+<span class="gp">&gt;&gt;&gt; </span><span class="n">V</span><span class="o">.</span><span class="n">x</span> <span class="o">=</span> <span class="mf">4.2</span> <span class="c1"># inferred 64-bit floating</span>
+<span class="gp">&gt;&gt;&gt; </span><span class="n">V</span><span class="o">.</span><span class="n">x</span> <span class="o">=</span> <span class="p">(</span><span class="s1">&#39;f&#39;</span><span class="p">,</span> <span class="mf">4.2</span><span class="p">)</span> <span class="c1"># explicit 32-bit floating</span>
+</pre></div>
+</div>
+<p>The rules for assigning a discriminating union are as follows:</p>
+<table border="1" class="docutils">
+<colgroup>
+<col width="16%" />
+<col width="84%" />
+</colgroup>
+<thead valign="bottom">
+<tr class="row-odd"><th class="head">value type</th>
+<th class="head">Action</th>
+</tr>
+</thead>
+<tbody valign="top">
+<tr class="row-even"><td>None</td>
+<td>clears current value</td>
+</tr>
+<tr class="row-odd"><td>(‘field’, val)</td>
+<td>explicitly specify the union field name</td>
+</tr>
+<tr class="row-even"><td>val</td>
+<td>If a union field has previously been selected, coerce assigned value</td>
+</tr>
+<tr class="row-odd"><td>val</td>
+<td>If no union field previously select, attempt magic selection and coerce.</td>
+</tr>
+</tbody>
+</table>
+<p>Other types throw an Exception.</p>
+</div>
+</div>
+<div class="section" id="module-p4p">
+<span id="api-reference"></span><h2>API Reference<a class="headerlink" href="#module-p4p" title="Permalink to this headline">¶</a></h2>
+<dl class="class">
+<dt id="p4p.Value">
+<em class="property">class </em><code class="descclassname">p4p.</code><code class="descname">Value</code><span class="sig-paren">(</span><em>type</em><span class="optional">[</span>, <em>initial</em><span class="optional">]</span><span class="sig-paren">)</span><a class="reference internal" href="_modules/p4p/wrapper.html#Value"><span class="viewcode-link">[source]</span></a><a class="headerlink" href="#p4p.Value" title="Permalink to this definition">¶</a></dt>
+<dd><table class="docutils field-list" frame="void" rules="none">
+<col class="field-name" />
+<col class="field-body" />
+<tbody valign="top">
+<tr class="field-odd field"><th class="field-name">Parameters:</th><td class="field-body"><ul class="first last simple">
+<li><strong>type</strong> (<a class="reference internal" href="#p4p.Type" title="p4p.Type"><em>Type</em></a>) – The <a class="reference internal" href="#p4p.Type" title="p4p.Type"><code class="xref any py py-class docutils literal notranslate"><span class="pre">Type</span></code></a> describing the structure to be instanciated</li>
+<li><strong>initial</strong> (<em>dict</em>) – A dictionary (or any mapping) which gives initial values for fields.</li>
+</ul>
+</td>
+</tr>
+</tbody>
+</table>
+<p>Representation of a data structure of a particular <a class="reference internal" href="#p4p.Type" title="p4p.Type"><code class="xref py py-class docutils literal notranslate"><span class="pre">Type</span></code></a>.</p>
+<p>Can be created using a <a class="reference internal" href="#p4p.Type" title="p4p.Type"><code class="xref py py-class docutils literal notranslate"><span class="pre">Type</span></code></a>, with an optional dict containing initial values.</p>
+<div class="highlight-default notranslate"><div class="highlight"><pre><span></span><span class="n">A</span> <span class="o">=</span> <span class="n">Value</span><span class="p">(</span><span class="n">Type</span><span class="p">([</span>
+    <span class="p">(</span><span class="s1">&#39;value&#39;</span><span class="p">,</span> <span class="s1">&#39;I&#39;</span><span class="p">),</span>
+<span class="p">]),</span> <span class="p">{</span>
+    <span class="s1">&#39;value&#39;</span><span class="p">:</span> <span class="mi">42</span><span class="p">,</span>
+<span class="p">})</span>
+</pre></div>
+</div>
+<p>Defines a structure with a single field named ‘value’ with type u32 (unsigned integer width 32-bit).</p>
+<p>An example of defining a sub-structure.</p>
+<div class="highlight-default notranslate"><div class="highlight"><pre><span></span><span class="n">A</span> <span class="o">=</span> <span class="n">Value</span><span class="p">(</span><span class="n">Type</span><span class="p">([</span>
+    <span class="p">(</span><span class="s1">&#39;value&#39;</span><span class="p">,</span> <span class="p">(</span><span class="s1">&#39;S&#39;</span><span class="p">,</span> <span class="kc">None</span><span class="p">,</span> <span class="p">[</span>
+        <span class="p">(</span><span class="s1">&#39;index&#39;</span><span class="p">,</span> <span class="s1">&#39;i&#39;</span><span class="p">),</span>
+    <span class="p">])),</span>
+<span class="p">]),</span> <span class="p">{</span>
+    <span class="s1">&#39;value&#39;</span><span class="p">:</span> <span class="p">{</span><span class="s1">&#39;index&#39;</span><span class="p">,</span> <span class="mi">5</span><span class="p">},</span>
+    <span class="c1"># &#39;value.index&#39;: 5,  # equivalent</span>
+<span class="p">})</span>
+</pre></div>
+</div>
+<p>Defines a structure containing a sub-structure ‘value’ which has a single field ‘index’ which is
+a signed 32-bit integer.</p>
+<dl class="method">
+<dt id="p4p.Value.tolist">
+<code class="descname">tolist</code><span class="sig-paren">(</span><em>name=None</em><span class="sig-paren">)</span><a class="headerlink" href="#p4p.Value.tolist" title="Permalink to this definition">¶</a></dt>
+<dd><p>Recursively transform into a list of tuples.</p>
+</dd></dl>
+
+<dl class="method">
+<dt id="p4p.Value.todict">
+<code class="descname">todict</code><span class="sig-paren">(</span><em>name=None</em>, <em>type=dict</em><span class="sig-paren">)</span><a class="headerlink" href="#p4p.Value.todict" title="Permalink to this definition">¶</a></dt>
+<dd><p>Recursively transform into a dictionary (or other type constructable from a list of tuples).</p>
+</dd></dl>
+
+<dl class="method">
+<dt id="p4p.Value.tostr">
+<code class="descname">tostr</code><span class="sig-paren">(</span><em>limit=0</em><span class="sig-paren">)</span> &#x2192; str<a class="headerlink" href="#p4p.Value.tostr" title="Permalink to this definition">¶</a></dt>
+<dd><p>Return a string representation of the Value.  If limit!=0, output is truncated after ~this many charactors.</p>
+</dd></dl>
+
+<dl class="method">
+<dt id="p4p.Value.items">
+<code class="descname">items</code><span class="sig-paren">(</span><span class="optional">[</span><em>&quot;fld&quot;</em><span class="optional">]</span><span class="sig-paren">)</span><a class="headerlink" href="#p4p.Value.items" title="Permalink to this definition">¶</a></dt>
+<dd><p>Transform into a list of tuples.  Not recursive</p>
+</dd></dl>
+
+<dl class="method">
+<dt id="p4p.Value.getID">
+<code class="descname">getID</code><span class="sig-paren">(</span><span class="sig-paren">)</span><a class="headerlink" href="#p4p.Value.getID" title="Permalink to this definition">¶</a></dt>
+<dd><p>Return Structure ID string</p>
+</dd></dl>
+
+<dl class="method">
+<dt id="p4p.Value.type">
+<code class="descname">type</code><span class="sig-paren">(</span><span class="optional">[</span><em>&quot;fld&quot;</em><span class="optional">]</span><span class="sig-paren">)</span><a class="headerlink" href="#p4p.Value.type" title="Permalink to this definition">¶</a></dt>
+<dd><table class="docutils field-list" frame="void" rules="none">
+<col class="field-name" />
+<col class="field-body" />
+<tbody valign="top">
+<tr class="field-odd field"><th class="field-name">Parameters:</th><td class="field-body"><strong>str</strong> (<em>field</em>) – None or the name of a sub-structure</td>
+</tr>
+<tr class="field-even field"><th class="field-name">Returns:</th><td class="field-body">The <a class="reference internal" href="#p4p.Type" title="p4p.Type"><code class="xref py py-class docutils literal notranslate"><span class="pre">Type</span></code></a> describing this Value.</td>
+</tr>
+</tbody>
+</table>
+</dd></dl>
+
+<dl class="method">
+<dt id="p4p.Value.has">
+<code class="descname">has</code><span class="sig-paren">(</span><em>&quot;fld&quot;</em><span class="sig-paren">)</span><a class="headerlink" href="#p4p.Value.has" title="Permalink to this definition">¶</a></dt>
+<dd><p>Test for existance of field</p>
+</dd></dl>
+
+<dl class="method">
+<dt id="p4p.Value.get">
+<code class="descname">get</code><span class="sig-paren">(</span><em>&quot;fld&quot;</em><span class="optional">[</span>, <em>default</em><span class="optional">]</span><span class="sig-paren">)</span><a class="headerlink" href="#p4p.Value.get" title="Permalink to this definition">¶</a></dt>
+<dd><p>Fetch a field value, or a default if it does not exist</p>
+</dd></dl>
+
+<dl class="method">
+<dt id="p4p.Value.select">
+<code class="descname">select</code><span class="sig-paren">(</span><em>&quot;fld&quot;</em>, <em>&quot;member&quot;</em><span class="sig-paren">)</span><a class="headerlink" href="#p4p.Value.select" title="Permalink to this definition">¶</a></dt>
+<dd><p>pre-select/clear Union</p>
+</dd></dl>
+
+<dl class="method">
+<dt id="p4p.Value.__getattr__">
+<code class="descname">__getattr__</code><span class="sig-paren">(</span><em>field</em><span class="sig-paren">)</span><a class="headerlink" href="#p4p.Value.__getattr__" title="Permalink to this definition">¶</a></dt>
+<dd><p>Access a sub-field.  If the sub-field value.</p>
+</dd></dl>
+
+<dl class="method">
+<dt id="p4p.Value.__setattr__">
+<code class="descname">__setattr__</code><span class="sig-paren">(</span><em>field</em>, <em>value</em><span class="sig-paren">)</span><a class="headerlink" href="#p4p.Value.__setattr__" title="Permalink to this definition">¶</a></dt>
+<dd><p>Assign sub-field.</p>
+</dd></dl>
+
+<dl class="method">
+<dt id="p4p.Value.__getitem__">
+<code class="descname">__getitem__</code><span class="sig-paren">(</span><em>field</em><span class="sig-paren">)</span><a class="headerlink" href="#p4p.Value.__getitem__" title="Permalink to this definition">¶</a></dt>
+<dd><p>Same as __getattr__</p>
+</dd></dl>
+
+<dl class="method">
+<dt id="p4p.Value.__setitem__">
+<code class="descname">__setitem__</code><span class="sig-paren">(</span><em>field</em>, <em>value</em><span class="sig-paren">)</span><a class="headerlink" href="#p4p.Value.__setitem__" title="Permalink to this definition">¶</a></dt>
+<dd><p>Same as __setattr__</p>
+</dd></dl>
+
+<dl class="method">
+<dt id="p4p.Value.changed">
+<code class="descname">changed</code><span class="sig-paren">(</span><em>*fields</em><span class="sig-paren">)</span><a class="reference internal" href="_modules/p4p/wrapper.html#Value.changed"><span class="viewcode-link">[source]</span></a><a class="headerlink" href="#p4p.Value.changed" title="Permalink to this definition">¶</a></dt>
+<dd><p>Test if one or more fields have changed.</p>
+<p>A field is considered to have changed if it has been marked as changed,
+or if any of its parent, or child, fields have been marked as changed.</p>
+</dd></dl>
+
+<dl class="method">
+<dt id="p4p.Value.changedSet">
+<code class="descname">changedSet</code><span class="sig-paren">(</span><em>expand=False</em>, <em>parents=False</em><span class="sig-paren">)</span><a class="reference internal" href="_modules/p4p/wrapper.html#Value.changedSet"><span class="viewcode-link">[source]</span></a><a class="headerlink" href="#p4p.Value.changedSet" title="Permalink to this definition">¶</a></dt>
+<dd><table class="docutils field-list" frame="void" rules="none">
+<col class="field-name" />
+<col class="field-body" />
+<tbody valign="top">
+<tr class="field-odd field"><th class="field-name">Parameters:</th><td class="field-body"><ul class="first simple">
+<li><strong>expand</strong> (<em>bool</em>) – Whether to expand when entire sub-structures are marked as changed.
+If True, then sub-structures are expanded and only leaf fields will be included.
+If False, then a direct translation is made, which may include both leaf and sub-structure fields.</li>
+<li><strong>parents</strong> (<em>bool</em>) – If True, include fake entries for parent sub-structures with leaf fields marked as changed.</li>
+</ul>
+</td>
+</tr>
+<tr class="field-even field"><th class="field-name">Returns:</th><td class="field-body"><p class="first last">A <code class="xref py py-class docutils literal notranslate"><span class="pre">set</span></code> of names of those fields marked as changed.</p>
+</td>
+</tr>
+</tbody>
+</table>
+<p>Return a <code class="xref py py-class docutils literal notranslate"><span class="pre">set</span></code> containing the names of all changed fields.</p>
+<div class="highlight-default notranslate"><div class="highlight"><pre><span></span><span class="n">A</span> <span class="o">=</span> <span class="n">Value</span><span class="p">(</span><span class="n">Type</span><span class="p">([</span>
+    <span class="p">(</span><span class="s1">&#39;x&#39;</span><span class="p">,</span> <span class="s1">&#39;i&#39;</span><span class="p">),</span>
+    <span class="p">(</span><span class="s1">&#39;z&#39;</span><span class="p">,</span> <span class="p">(</span><span class="s1">&#39;S&#39;</span><span class="p">,</span> <span class="kc">None</span><span class="p">,</span> <span class="p">[</span>
+        <span class="p">(</span><span class="s1">&#39;a&#39;</span><span class="p">,</span> <span class="s1">&#39;i&#39;</span><span class="p">),</span>
+        <span class="p">(</span><span class="s1">&#39;b&#39;</span><span class="p">,</span> <span class="s1">&#39;i&#39;</span><span class="p">),</span>
+    <span class="p">])),</span>
+<span class="p">]),</span> <span class="p">{</span>
+<span class="p">})</span>
+
+<span class="n">A</span><span class="o">.</span><span class="n">mark</span><span class="p">(</span><span class="s1">&#39;z&#39;</span><span class="p">)</span>
+<span class="k">assert</span> <span class="n">A</span><span class="o">.</span><span class="n">changedSet</span><span class="p">(</span><span class="n">expand</span><span class="o">=</span><span class="kc">False</span><span class="p">)</span> <span class="o">==</span> <span class="p">{</span><span class="s1">&#39;z&#39;</span><span class="p">}</span>         <span class="c1"># only shows fields explicitly marked</span>
+<span class="k">assert</span> <span class="n">A</span><span class="o">.</span><span class="n">changedSet</span><span class="p">(</span><span class="n">expand</span><span class="o">=</span><span class="kc">True</span><span class="p">)</span> <span class="o">==</span> <span class="p">{</span><span class="s1">&#39;z.a&#39;</span><span class="p">,</span> <span class="s1">&#39;z.b&#39;</span><span class="p">}</span> <span class="c1"># actually used during network transmission</span>
+<span class="n">A</span><span class="o">.</span><span class="n">mark</span><span class="p">(</span><span class="s1">&#39;z.a&#39;</span><span class="p">)</span> <span class="c1"># redundant</span>
+<span class="k">assert</span> <span class="n">A</span><span class="o">.</span><span class="n">changedSet</span><span class="p">(</span><span class="n">expand</span><span class="o">=</span><span class="kc">False</span><span class="p">)</span> <span class="o">==</span> <span class="p">{</span><span class="s1">&#39;z&#39;</span><span class="p">,</span> <span class="s1">&#39;z.a&#39;</span><span class="p">}</span>
+<span class="k">assert</span> <span class="n">A</span><span class="o">.</span><span class="n">changedSet</span><span class="p">(</span><span class="n">expand</span><span class="o">=</span><span class="kc">True</span><span class="p">)</span> <span class="o">==</span> <span class="p">{</span><span class="s1">&#39;z.a&#39;</span><span class="p">,</span> <span class="s1">&#39;z.b&#39;</span><span class="p">}</span>
+<span class="n">A</span><span class="o">.</span><span class="n">unmark</span><span class="p">(</span><span class="s1">&#39;z&#39;</span><span class="p">)</span>
+<span class="k">assert</span> <span class="n">A</span><span class="o">.</span><span class="n">changedSet</span><span class="p">(</span><span class="n">expand</span><span class="o">=</span><span class="kc">False</span><span class="p">)</span> <span class="o">==</span> <span class="p">{</span><span class="s1">&#39;z.a&#39;</span><span class="p">}</span>
+<span class="k">assert</span> <span class="n">A</span><span class="o">.</span><span class="n">changedSet</span><span class="p">(</span><span class="n">expand</span><span class="o">=</span><span class="kc">True</span><span class="p">)</span> <span class="o">==</span> <span class="p">{</span><span class="s1">&#39;z.a&#39;</span><span class="p">}</span>
+<span class="k">assert</span> <span class="n">A</span><span class="o">.</span><span class="n">changedSet</span><span class="p">(</span><span class="n">expand</span><span class="o">=</span><span class="kc">False</span><span class="p">,</span> <span class="n">parents</span><span class="o">=</span><span class="kc">True</span><span class="p">)</span> <span class="o">==</span> <span class="p">{</span><span class="s1">&#39;z&#39;</span><span class="p">,</span> <span class="s1">&#39;z.a&#39;</span><span class="p">}</span>
+<span class="k">assert</span> <span class="n">A</span><span class="o">.</span><span class="n">changedSet</span><span class="p">(</span><span class="n">expand</span><span class="o">=</span><span class="kc">True</span><span class="p">,</span> <span class="n">parents</span><span class="o">=</span><span class="kc">True</span><span class="p">)</span> <span class="o">==</span> <span class="p">{</span><span class="s1">&#39;z&#39;</span><span class="p">,</span> <span class="s1">&#39;z.a&#39;</span><span class="p">}</span>
+</pre></div>
+</div>
+<ul class="simple">
+<li>expand=False, parents=False gives a direct mapping of the underlying BitSet as it would (get/monitor),
+or have been (put/rpc), moved over the network.</li>
+<li>expand=True, parents=False gives the effective set of leaf fields which will be moved over the network.
+taking into account the use of whole sub-structure compress/shorthand bits.</li>
+<li>expand=False, parents=True gives a way of testing if anything changed within a set of interesting fields
+(cf. set.intersect).</li>
+</ul>
+</dd></dl>
+
+<dl class="method">
+<dt id="p4p.Value.mark">
+<code class="descname">mark</code><span class="sig-paren">(</span><em>&quot;fld&quot;</em>, <em>val=True</em><span class="sig-paren">)</span><a class="headerlink" href="#p4p.Value.mark" title="Permalink to this definition">¶</a></dt>
+<dd><p>set/clear field as changed</p>
+</dd></dl>
+
+<dl class="method">
+<dt id="p4p.Value.unmark">
+<code class="descname">unmark</code><span class="sig-paren">(</span><span class="sig-paren">)</span><a class="headerlink" href="#p4p.Value.unmark" title="Permalink to this definition">¶</a></dt>
+<dd><p>clear all field changed flag.</p>
+</dd></dl>
+
+<dl class="method">
+<dt id="p4p.Value.asSet">
+<code class="descname">asSet</code><span class="sig-paren">(</span><span class="sig-paren">)</span><a class="headerlink" href="#p4p.Value.asSet" title="Permalink to this definition">¶</a></dt>
+<dd><p>Deprecated alias for asSet()</p>
+</dd></dl>
+
+</dd></dl>
+
+<dl class="class">
+<dt id="p4p.Type">
+<em class="property">class </em><code class="descclassname">p4p.</code><code class="descname">Type</code><span class="sig-paren">(</span><em>fields</em>, <em>id=None</em>, <em>base=None</em><span class="sig-paren">)</span><a class="reference internal" href="_modules/p4p/wrapper.html#Type"><span class="viewcode-link">[source]</span></a><a class="headerlink" href="#p4p.Type" title="Permalink to this definition">¶</a></dt>
+<dd><table class="docutils field-list" frame="void" rules="none">
+<col class="field-name" />
+<col class="field-body" />
+<tbody valign="top">
+<tr class="field-odd field"><th class="field-name">Parameters:</th><td class="field-body"><ul class="first last simple">
+<li><strong>fields</strong> (<em>list</em>) – A list of tuples describing members of this data structure.</li>
+<li><strong>id</strong> (<em>str</em>) – Type label string.</li>
+<li><strong>base</strong> (<a class="reference internal" href="#p4p.Type" title="p4p.Type"><em>Type</em></a>) – Copy the fields of <a class="reference internal" href="#p4p.Type" title="p4p.Type"><code class="xref any py py-class docutils literal notranslate"><span class="pre">Type</span></code></a>, then amend with the provided fields.</li>
+</ul>
+</td>
+</tr>
+</tbody>
+</table>
+<p>A definition of a data structure consisting of a list of field names and types,
+as well as an optional type name string (id=”“).
+Field type specifications are either a string eg. “d” (double precision float),
+or a tuple (“S”, None, [fields…) defining a sub-structure.</p>
+<div class="highlight-default notranslate"><div class="highlight"><pre><span></span><span class="n">T</span> <span class="o">=</span> <span class="n">Type</span><span class="p">([</span>
+    <span class="p">(</span><span class="s1">&#39;value&#39;</span><span class="p">,</span> <span class="s1">&#39;I&#39;</span><span class="p">),</span>
+<span class="p">])</span>
+</pre></div>
+</div>
+<p>Defines a structure with a single field named ‘value’ with type u32 (unsigned integer width 32-bit).</p>
+<p>An example of defining a sub-structure.</p>
+<div class="highlight-default notranslate"><div class="highlight"><pre><span></span><span class="n">T</span> <span class="o">=</span> <span class="n">Type</span><span class="p">([</span>
+    <span class="p">(</span><span class="s1">&#39;value&#39;</span><span class="p">,</span> <span class="p">(</span><span class="s1">&#39;S&#39;</span><span class="p">,</span> <span class="kc">None</span><span class="p">,</span> <span class="p">[</span>
+        <span class="p">(</span><span class="s1">&#39;index&#39;</span><span class="p">,</span> <span class="s1">&#39;i&#39;</span><span class="p">),</span>
+    <span class="p">])),</span>
+<span class="p">])</span>
+</pre></div>
+</div>
+<p>Type specifier codes:</p>
+<table border="1" class="docutils">
+<colgroup>
+<col width="36%" />
+<col width="64%" />
+</colgroup>
+<thead valign="bottom">
+<tr class="row-odd"><th class="head">Code</th>
+<th class="head">Type</th>
+</tr>
+</thead>
+<tbody valign="top">
+<tr class="row-even"><td>?</td>
+<td>bool</td>
+</tr>
+<tr class="row-odd"><td>s</td>
+<td>unicode</td>
+</tr>
+<tr class="row-even"><td>b</td>
+<td>s8</td>
+</tr>
+<tr class="row-odd"><td>B</td>
+<td>u8</td>
+</tr>
+<tr class="row-even"><td>h</td>
+<td>s16</td>
+</tr>
+<tr class="row-odd"><td>H</td>
+<td>u16</td>
+</tr>
+<tr class="row-even"><td>i</td>
+<td>i32</td>
+</tr>
+<tr class="row-odd"><td>I</td>
+<td>u32</td>
+</tr>
+<tr class="row-even"><td>l</td>
+<td>i64</td>
+</tr>
+<tr class="row-odd"><td>L</td>
+<td>u64</td>
+</tr>
+<tr class="row-even"><td>f</td>
+<td>f32</td>
+</tr>
+<tr class="row-odd"><td>d</td>
+<td>f64</td>
+</tr>
+<tr class="row-even"><td>v</td>
+<td>variant</td>
+</tr>
+<tr class="row-odd"><td>U</td>
+<td>union</td>
+</tr>
+<tr class="row-even"><td>S</td>
+<td>struct</td>
+</tr>
+</tbody>
+</table>
+<dl class="method">
+<dt id="p4p.Type.getID">
+<code class="descname">getID</code><span class="sig-paren">(</span><span class="sig-paren">)</span><a class="headerlink" href="#p4p.Type.getID" title="Permalink to this definition">¶</a></dt>
+<dd><p>Return Structure ID</p>
+</dd></dl>
+
+<dl class="method">
+<dt id="p4p.Type.aspy">
+<code class="descname">aspy</code><span class="sig-paren">(</span><span class="sig-paren">)</span><a class="headerlink" href="#p4p.Type.aspy" title="Permalink to this definition">¶</a></dt>
+<dd><p>Return spec for this PVD Structure</p>
+</dd></dl>
+
+<dl class="method">
+<dt id="p4p.Type.has">
+<code class="descname">has</code><span class="sig-paren">(</span><em>'name'</em>, <em>type=None</em><span class="sig-paren">)</span><a class="headerlink" href="#p4p.Type.has" title="Permalink to this definition">¶</a></dt>
+<dd><p>Test structure member presence</p>
+</dd></dl>
+
+<dl class="method">
+<dt id="p4p.Type.__getattr__">
+<code class="descname">__getattr__</code><span class="sig-paren">(</span><em>field</em><span class="sig-paren">)</span><a class="headerlink" href="#p4p.Type.__getattr__" title="Permalink to this definition">¶</a></dt>
+<dd><p>Return Type of field.  Same as self.aspy(field) for non-structure fields.</p>
+</dd></dl>
+
+<dl class="method">
+<dt id="p4p.Type.keys">
+<code class="descname">keys</code><span class="sig-paren">(</span><span class="sig-paren">)</span><a class="headerlink" href="#p4p.Type.keys" title="Permalink to this definition">¶</a></dt>
+<dd><p>Return field names</p>
+</dd></dl>
+
+<dl class="method">
+<dt id="p4p.Type.values">
+<code class="descname">values</code><span class="sig-paren">(</span><span class="sig-paren">)</span><a class="reference internal" href="_modules/p4p/wrapper.html#Type.values"><span class="viewcode-link">[source]</span></a><a class="headerlink" href="#p4p.Type.values" title="Permalink to this definition">¶</a></dt>
+<dd></dd></dl>
+
+<dl class="method">
+<dt id="p4p.Type.items">
+<code class="descname">items</code><span class="sig-paren">(</span><span class="sig-paren">)</span><a class="reference internal" href="_modules/p4p/wrapper.html#Type.items"><span class="viewcode-link">[source]</span></a><a class="headerlink" href="#p4p.Type.items" title="Permalink to this definition">¶</a></dt>
+<dd></dd></dl>
+
+<dl class="method">
+<dt id="p4p.Type.__iter__">
+<code class="descname">__iter__</code><span class="sig-paren">(</span><span class="sig-paren">)</span><a class="reference internal" href="_modules/p4p/wrapper.html#Type.__iter__"><span class="viewcode-link">[source]</span></a><a class="headerlink" href="#p4p.Type.__iter__" title="Permalink to this definition">¶</a></dt>
+<dd></dd></dl>
+
+</dd></dl>
+
+</div>
+<div class="section" id="relation-to-c-api">
+<h2>Relation to C++ API<a class="headerlink" href="#relation-to-c-api" title="Permalink to this headline">¶</a></h2>
+<p>For those familiar with the pvDataCPP API.
+A <a class="reference internal" href="#p4p.Type" title="p4p.Type"><code class="xref py py-class docutils literal notranslate"><span class="pre">Type</span></code></a> wraps a Structure.
+<a class="reference internal" href="#p4p.Value" title="p4p.Value"><code class="xref py py-class docutils literal notranslate"><span class="pre">Value</span></code></a> wraps a
+PVStructure and an associated BitSet describing which fields have been
+initialized.</p>
+</div>
+</div>
+
+
+          </div>
+        </div>
+      </div>
+      <div class="sphinxsidebar" role="navigation" aria-label="main navigation">
+        <div class="sphinxsidebarwrapper">
+<h1 class="logo"><a href="index.html">P4P</a></h1>
+
+
+
+
+
+
+
+
+<h3>Navigation</h3>
+<ul class="current">
+<li class="toctree-l1"><a class="reference internal" href="starting.html">Quick Start</a></li>
+<li class="toctree-l1"><a class="reference internal" href="overview.html">Overview</a></li>
+<li class="toctree-l1"><a class="reference internal" href="building.html">Building</a></li>
+<li class="toctree-l1"><a class="reference internal" href="client.html">Client API</a></li>
+<li class="toctree-l1"><a class="reference internal" href="nt.html">Common Types</a></li>
+<li class="toctree-l1 current"><a class="current reference internal" href="#">Working with Value and Type</a><ul>
+<li class="toctree-l2"><a class="reference internal" href="#working-with-type-and-value">Working with Type and Value</a></li>
+<li class="toctree-l2"><a class="reference internal" href="#type-definitions">Type definitions</a></li>
+<li class="toctree-l2"><a class="reference internal" href="#module-p4p">API Reference</a></li>
+<li class="toctree-l2"><a class="reference internal" href="#relation-to-c-api">Relation to C++ API</a></li>
+</ul>
+</li>
+<li class="toctree-l1"><a class="reference internal" href="server.html">Server API</a></li>
+<li class="toctree-l1"><a class="reference internal" href="rpc.html">RPC Server Helpers</a></li>
+<li class="toctree-l1"><a class="reference internal" href="internal.html">Internal API</a></li>
+<li class="toctree-l1"><a class="reference internal" href="gw.html">PVA Gateway</a></li>
+</ul>
+
+<div class="relations">
+<h3>Related Topics</h3>
+<ul>
+  <li><a href="index.html">Documentation overview</a><ul>
+      <li>Previous: <a href="nt.html" title="previous chapter">Common Types</a></li>
+      <li>Next: <a href="server.html" title="next chapter">Server API</a></li>
+  </ul></li>
+</ul>
+</div>
+<div id="searchbox" style="display: none" role="search">
+  <h3>Quick search</h3>
+    <div class="searchformwrapper">
+    <form class="search" action="search.html" method="get">
+      <input type="text" name="q" />
+      <input type="submit" value="Go" />
+      <input type="hidden" name="check_keywords" value="yes" />
+      <input type="hidden" name="area" value="default" />
+    </form>
+    </div>
+</div>
+<script type="text/javascript">$('#searchbox').show(0);</script>
+        </div>
+      </div>
+      <div class="clearer"></div>
+    </div>
+    <div class="footer">
+      &copy;2021, Michael Davidsaver.
+      
+      |
+      Powered by <a href="http://sphinx-doc.org/">Sphinx 1.8.4</a>
+      &amp; <a href="https://github.com/bitprophet/alabaster">Alabaster 0.7.8</a>
+      
+      |
+      <a href="_sources/values.rst.txt"
+          rel="nofollow">Page source</a>
+    </div>
+
+    
+
+    
+  </body>
+</html>

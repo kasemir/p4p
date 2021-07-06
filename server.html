@@ -1,0 +1,632 @@
+
+<!DOCTYPE html PUBLIC "-//W3C//DTD XHTML 1.0 Transitional//EN"
+  "http://www.w3.org/TR/xhtml1/DTD/xhtml1-transitional.dtd">
+
+<html xmlns="http://www.w3.org/1999/xhtml">
+  <head>
+    <meta http-equiv="X-UA-Compatible" content="IE=Edge" />
+    <meta http-equiv="Content-Type" content="text/html; charset=utf-8" />
+    <title>Server API &#8212; P4P 3.5.4 documentation</title>
+    <link rel="stylesheet" href="_static/alabaster.css" type="text/css" />
+    <link rel="stylesheet" href="_static/pygments.css" type="text/css" />
+    <link rel="stylesheet" type="text/css" href="_static/graphviz.css" />
+    <script type="text/javascript" id="documentation_options" data-url_root="./" src="_static/documentation_options.js"></script>
+    <script type="text/javascript" src="_static/jquery.js"></script>
+    <script type="text/javascript" src="_static/underscore.js"></script>
+    <script type="text/javascript" src="_static/doctools.js"></script>
+    <script type="text/javascript" src="_static/language_data.js"></script>
+    <link rel="index" title="Index" href="genindex.html" />
+    <link rel="search" title="Search" href="search.html" />
+    <link rel="next" title="RPC Server Helpers" href="rpc.html" />
+    <link rel="prev" title="Working with Value and Type" href="values.html" />
+   
+  <link rel="stylesheet" href="_static/custom.css" type="text/css" />
+  
+  <meta name="viewport" content="width=device-width, initial-scale=0.9, maximum-scale=0.9" />
+
+  </head><body>
+  
+
+    <div class="document">
+      <div class="documentwrapper">
+        <div class="bodywrapper">
+          <div class="body" role="main">
+            
+  <div class="section" id="server-api">
+<span id="serverapi"></span><h1>Server API<a class="headerlink" href="#server-api" title="Permalink to this headline">¶</a></h1>
+<div class="section" id="running-a-pva-server">
+<h2>Running a PVA Server<a class="headerlink" href="#running-a-pva-server" title="Permalink to this headline">¶</a></h2>
+<p>A <a class="reference internal" href="#p4p.server.Server" title="p4p.server.Server"><code class="xref py py-class docutils literal notranslate"><span class="pre">Server</span></code></a> instance starts/stops a PVAccess server.
+In order to be useful, a Server must be associated with one or more Providers.</p>
+<p>Two Provider containers are available: <a class="reference internal" href="#p4p.server.StaticProvider" title="p4p.server.StaticProvider"><code class="xref py py-class docutils literal notranslate"><span class="pre">StaticProvider</span></code></a> or <a class="reference internal" href="#p4p.server.DynamicProvider" title="p4p.server.DynamicProvider"><code class="xref py py-class docutils literal notranslate"><span class="pre">DynamicProvider</span></code></a>.
+Both are used with one of the SharedPV classes:,
+<a class="reference internal" href="#p4p.server.thread.SharedPV" title="p4p.server.thread.SharedPV"><code class="xref py py-class docutils literal notranslate"><span class="pre">thread.SharedPV</span></code></a>, <a class="reference internal" href="#p4p.server.asyncio.SharedPV" title="p4p.server.asyncio.SharedPV"><code class="xref py py-class docutils literal notranslate"><span class="pre">asyncio.SharedPV</span></code></a>, and/or <a class="reference internal" href="#p4p.server.cothread.SharedPV" title="p4p.server.cothread.SharedPV"><code class="xref py py-class docutils literal notranslate"><span class="pre">cothread.SharedPV</span></code></a>.
+Instances of these different concurrency models may be mixed into a single Provider.</p>
+<div class="section" id="example">
+<h3>Example<a class="headerlink" href="#example" title="Permalink to this headline">¶</a></h3>
+<p>A server with a single “mailbox” PV.</p>
+<div class="highlight-default notranslate"><div class="highlight"><pre><span></span><span class="kn">import</span> <span class="nn">time</span>
+<span class="kn">from</span> <span class="nn">p4p.nt</span> <span class="k">import</span> <span class="n">NTScalar</span>
+<span class="kn">from</span> <span class="nn">p4p.server</span> <span class="k">import</span> <span class="n">Server</span>
+<span class="kn">from</span> <span class="nn">p4p.server.thread</span> <span class="k">import</span> <span class="n">SharedPV</span>
+
+<span class="n">pv</span> <span class="o">=</span> <span class="n">SharedPV</span><span class="p">(</span><span class="n">nt</span><span class="o">=</span><span class="n">NTScalar</span><span class="p">(</span><span class="s1">&#39;d&#39;</span><span class="p">),</span> <span class="c1"># scalar double</span>
+              <span class="n">initial</span><span class="o">=</span><span class="mf">0.0</span><span class="p">)</span>      <span class="c1"># setting initial value also open()&#39;s</span>
+<span class="nd">@pv</span><span class="o">.</span><span class="n">put</span>
+<span class="k">def</span> <span class="nf">handle</span><span class="p">(</span><span class="n">pv</span><span class="p">,</span> <span class="n">op</span><span class="p">):</span>
+    <span class="n">pv</span><span class="o">.</span><span class="n">post</span><span class="p">(</span><span class="n">op</span><span class="o">.</span><span class="n">value</span><span class="p">())</span> <span class="c1"># just store and update subscribers</span>
+    <span class="n">op</span><span class="o">.</span><span class="n">done</span><span class="p">()</span>
+
+<span class="n">Server</span><span class="o">.</span><span class="n">forever</span><span class="p">(</span><span class="n">providers</span><span class="o">=</span><span class="p">[{</span>
+    <span class="s1">&#39;demo:pv:name&#39;</span><span class="p">:</span><span class="n">pv</span><span class="p">,</span> <span class="c1"># PV name only appears here</span>
+<span class="p">}])</span> <span class="c1"># runs until KeyboardInterrupt</span>
+</pre></div>
+</div>
+<p>This server can be tested using the included command line tools. eg.</p>
+<div class="highlight-default notranslate"><div class="highlight"><pre><span></span>$ python -m p4p.client.cli get demo:pv:name
+$ python -m p4p.client.cli put demo:pv:name
+$ python -m p4p.client.cli get demo:pv:name
+</pre></div>
+</div>
+<p>And in another shell.</p>
+<div class="highlight-default notranslate"><div class="highlight"><pre><span></span>$ python -m p4p.client.cli monitor demo:pv:name
+</pre></div>
+</div>
+<p>Note that this example allows clients to change any field, not just ‘.value’.
+This may be restricted by inspecting the <a class="reference internal" href="values.html#p4p.Value" title="p4p.Value"><code class="xref any py py-class docutils literal notranslate"><span class="pre">Value</span></code></a> returned by ‘op.value()’
+to see which fields are marked as changed with eg. <a class="reference internal" href="values.html#p4p.Value.changed" title="p4p.Value.changed"><code class="xref any py py-meth docutils literal notranslate"><span class="pre">Value.changed()</span></code></a>.</p>
+<p>A client put operation can be failed with eg. ‘op.done(err=”oops”)’.</p>
+<p>In the put handler function ‘pv’ is the <a class="reference internal" href="internal.html#p4p.server.raw.SharedPV" title="p4p.server.raw.SharedPV"><code class="xref any py py-class docutils literal notranslate"><span class="pre">SharedPV</span></code></a> and ‘op’ is a <a class="reference internal" href="#p4p.server.ServerOperation" title="p4p.server.ServerOperation"><code class="xref any py py-class docutils literal notranslate"><span class="pre">ServerOperation</span></code></a>.</p>
+</div>
+</div>
+<div class="section" id="id1">
+<h2>Server API<a class="headerlink" href="#id1" title="Permalink to this headline">¶</a></h2>
+<dl class="class">
+<dt id="p4p.server.Server">
+<em class="property">class </em><code class="descclassname">p4p.server.</code><code class="descname">Server</code><span class="sig-paren">(</span><em>conf=None, useenv=True, providers=[&quot;&quot;]</em><span class="sig-paren">)</span><a class="reference internal" href="_modules/p4p/server.html#Server"><span class="viewcode-link">[source]</span></a><a class="headerlink" href="#p4p.server.Server" title="Permalink to this definition">¶</a></dt>
+<dd><table class="docutils field-list" frame="void" rules="none">
+<col class="field-name" />
+<col class="field-body" />
+<tbody valign="top">
+<tr class="field-odd field"><th class="field-name">Parameters:</th><td class="field-body"><ul class="first last simple">
+<li><strong>providers</strong> – A list of provider names or instances.  See below.</li>
+<li><strong>conf</strong> (<em>dict</em>) – Configuration keys for the server.  Uses same names as environment variables (aka. EPICS_PVAS_*)</li>
+<li><strong>useenv</strong> (<em>bool</em>) – Whether to use process environment in addition to provided config.</li>
+<li><strong>isolate</strong> (<em>bool</em>) – If True, override conf= and useenv= to select a configuration suitable for isolated testing.
+eg. listening only on localhost with a randomly chosen port number.  Use <a class="reference internal" href="#p4p.server.Server.conf" title="p4p.server.Server.conf"><code class="xref any py py-meth docutils literal notranslate"><span class="pre">conf()</span></code></a> to determine
+which port is being used.</li>
+</ul>
+</td>
+</tr>
+</tbody>
+</table>
+<p>Run a PVAccess server serving Channels from the listed providers.
+The server is running after construction, until stop().</p>
+<div class="highlight-default notranslate"><div class="highlight"><pre><span></span><span class="n">S</span> <span class="o">=</span> <span class="n">Server</span><span class="p">(</span><span class="n">providers</span><span class="o">=</span><span class="p">[</span><span class="s2">&quot;example&quot;</span><span class="p">])</span>
+<span class="c1"># do something else</span>
+<span class="n">S</span><span class="o">.</span><span class="n">stop</span><span class="p">()</span>
+</pre></div>
+</div>
+<p>As a convenience, a Server may be used as a context manager to automatically <a class="reference internal" href="#p4p.server.Server.stop" title="p4p.server.Server.stop"><code class="xref any py py-meth docutils literal notranslate"><span class="pre">stop()</span></code></a>.</p>
+<div class="highlight-default notranslate"><div class="highlight"><pre><span></span><span class="k">with</span> <span class="n">Server</span><span class="p">(</span><span class="n">providers</span><span class="o">=</span><span class="p">[</span><span class="s2">&quot;example&quot;</span><span class="p">])</span> <span class="k">as</span> <span class="n">S</span><span class="p">:</span>
+    <span class="c1"># do something else</span>
+</pre></div>
+</div>
+<p>When configuring a Server, conf keys provided to the constructor have the same name as the environment variables.
+If both are given, then the provided conf dict is used.</p>
+<p>Call Server.conf() to see a list of valid server (EPICS_PVAS_*) key names and the actual values.</p>
+<p>The providers list must be a list of name strings (cf. installProvider()),
+a list of <a class="reference internal" href="#p4p.server.StaticProvider" title="p4p.server.StaticProvider"><code class="xref any py py-class docutils literal notranslate"><span class="pre">StaticProvider</span></code></a> or <a class="reference internal" href="#p4p.server.DynamicProvider" title="p4p.server.DynamicProvider"><code class="xref any py py-class docutils literal notranslate"><span class="pre">DynamicProvider</span></code></a> instances, or dict “{‘pv:name’:<a class="reference internal" href="internal.html#p4p.server.raw.SharedPV" title="p4p.server.raw.SharedPV"><code class="xref any py py-class docutils literal notranslate"><span class="pre">SharedPV</span></code></a>}” to implicitly creat a <a class="reference internal" href="#p4p.server.StaticProvider" title="p4p.server.StaticProvider"><code class="xref any py py-class docutils literal notranslate"><span class="pre">StaticProvider</span></code></a>.</p>
+<dl class="method">
+<dt id="p4p.server.Server.conf">
+<code class="descname">conf</code><span class="sig-paren">(</span><span class="sig-paren">)</span><a class="reference internal" href="_modules/p4p/server.html#Server.conf"><span class="viewcode-link">[source]</span></a><a class="headerlink" href="#p4p.server.Server.conf" title="Permalink to this definition">¶</a></dt>
+<dd><p>Return a dict() with the effective configuration this server is using.</p>
+<p>Suitable to pass to another Server to duplicate this configuration,
+or to a client Context to allow it to connect to this server.</p>
+<div class="highlight-default notranslate"><div class="highlight"><pre><span></span><span class="k">with</span> <span class="n">Server</span><span class="p">(</span><span class="n">providers</span><span class="o">=</span><span class="p">[</span><span class="s2">&quot;...&quot;</span><span class="p">],</span> <span class="n">isolate</span><span class="o">=</span><span class="kc">True</span><span class="p">)</span> <span class="k">as</span> <span class="n">S</span><span class="p">:</span>
+    <span class="k">with</span> <span class="n">p4p</span><span class="o">.</span><span class="n">client</span><span class="o">.</span><span class="n">thread</span><span class="o">.</span><span class="n">Context</span><span class="p">(</span><span class="s1">&#39;pva&#39;</span><span class="p">,</span> <span class="n">conf</span><span class="o">=</span><span class="n">S</span><span class="o">.</span><span class="n">conf</span><span class="p">(),</span> <span class="n">useenv</span><span class="o">=</span><span class="kc">False</span><span class="p">)</span> <span class="k">as</span> <span class="n">C</span><span class="p">:</span>
+        <span class="nb">print</span><span class="p">(</span><span class="n">C</span><span class="o">.</span><span class="n">get</span><span class="p">(</span><span class="s2">&quot;pv:name&quot;</span><span class="p">))</span>
+</pre></div>
+</div>
+</dd></dl>
+
+<dl class="method">
+<dt id="p4p.server.Server.stop">
+<code class="descname">stop</code><span class="sig-paren">(</span><span class="sig-paren">)</span><a class="reference internal" href="_modules/p4p/server.html#Server.stop"><span class="viewcode-link">[source]</span></a><a class="headerlink" href="#p4p.server.Server.stop" title="Permalink to this definition">¶</a></dt>
+<dd><p>Force server to stop serving, and close connections to existing clients.</p>
+</dd></dl>
+
+</dd></dl>
+
+<dl class="class">
+<dt id="p4p.server.StaticProvider">
+<em class="property">class </em><code class="descclassname">p4p.server.</code><code class="descname">StaticProvider</code><span class="sig-paren">(</span><em>name=None</em><span class="sig-paren">)</span><a class="reference internal" href="_modules/p4p/server.html#StaticProvider"><span class="viewcode-link">[source]</span></a><a class="headerlink" href="#p4p.server.StaticProvider" title="Permalink to this definition">¶</a></dt>
+<dd><p>A channel provider which servers from a clearly defined list of names.
+This list may change at any time.</p>
+<table class="docutils field-list" frame="void" rules="none">
+<col class="field-name" />
+<col class="field-body" />
+<tbody valign="top">
+<tr class="field-odd field"><th class="field-name">Parameters:</th><td class="field-body"><strong>name</strong> (<em>str</em>) – Provider name.  Must be unique within the local context in which it is used.
+None, the default, will choose an appropriate value.</td>
+</tr>
+</tbody>
+</table>
+<dl class="method">
+<dt id="p4p.server.StaticProvider.close">
+<code class="descname">close</code><span class="sig-paren">(</span><span class="sig-paren">)</span><a class="headerlink" href="#p4p.server.StaticProvider.close" title="Permalink to this definition">¶</a></dt>
+<dd><p>Equivalent to calling <a class="reference internal" href="internal.html#p4p._p4p.SharedPV.close" title="p4p._p4p.SharedPV.close"><code class="xref any py py-meth docutils literal notranslate"><span class="pre">SharedPV.close()</span></code></a> on every SharedPV <a class="reference internal" href="#p4p.server.StaticProvider.add" title="p4p.server.StaticProvider.add"><code class="xref any py py-meth docutils literal notranslate"><span class="pre">add()</span></code></a>’d</p>
+</dd></dl>
+
+<dl class="method">
+<dt id="p4p.server.StaticProvider.add">
+<code class="descname">add</code><span class="sig-paren">(</span><em>name</em>, <em>pv</em><span class="sig-paren">)</span><a class="headerlink" href="#p4p.server.StaticProvider.add" title="Permalink to this definition">¶</a></dt>
+<dd><p>Add a new SharedPV instance to be served by this provider.</p>
+</dd></dl>
+
+<dl class="method">
+<dt id="p4p.server.StaticProvider.remove">
+<code class="descname">remove</code><span class="sig-paren">(</span><em>name</em><span class="sig-paren">)</span> &#x2192; pv<a class="headerlink" href="#p4p.server.StaticProvider.remove" title="Permalink to this definition">¶</a></dt>
+<dd><p>Remove a SharedPV from this provider.  Raises KeyError if named PV doesn’t exist.
+Returns the PV which has been removed.
+Implicitly <a class="reference internal" href="#p4p.server.StaticProvider.close" title="p4p.server.StaticProvider.close"><code class="xref any py py-meth docutils literal notranslate"><span class="pre">close()</span></code></a> s the PV before returning, disconnecting any clients.</p>
+</dd></dl>
+
+<dl class="method">
+<dt id="p4p.server.StaticProvider.keys">
+<code class="descname">keys</code><span class="sig-paren">(</span><span class="sig-paren">)</span> &#x2192; [name]<a class="headerlink" href="#p4p.server.StaticProvider.keys" title="Permalink to this definition">¶</a></dt>
+<dd><p>Returns a list of PV names</p>
+</dd></dl>
+
+</dd></dl>
+
+<p>For situations where PV names are not known ahead of time,
+or when PVs are “created” only as requested, DynamicProvider should be used.</p>
+<dl class="class">
+<dt id="p4p.server.DynamicProvider">
+<em class="property">class </em><code class="descclassname">p4p.server.</code><code class="descname">DynamicProvider</code><span class="sig-paren">(</span><em>name</em>, <em>handler</em><span class="sig-paren">)</span><a class="reference internal" href="_modules/p4p/server.html#DynamicProvider"><span class="viewcode-link">[source]</span></a><a class="headerlink" href="#p4p.server.DynamicProvider" title="Permalink to this definition">¶</a></dt>
+<dd><p>A channel provider which does not maintain a list of provided channel names.</p>
+<p>The following example shows a simple case, in fact so simple that StaticProvider
+is a better fit.</p>
+<div class="highlight-default notranslate"><div class="highlight"><pre><span></span><span class="k">class</span> <span class="nc">DynHandler</span><span class="p">(</span><span class="nb">object</span><span class="p">):</span>
+    <span class="k">def</span> <span class="nf">__init__</span><span class="p">(</span><span class="bp">self</span><span class="p">):</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">pv</span> <span class="o">=</span> <span class="n">SharedPV</span><span class="p">()</span>
+    <span class="k">def</span> <span class="nf">testChannel</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">name</span><span class="p">):</span> <span class="c1"># return True, False, or DynamicProvider.NotYet</span>
+        <span class="k">return</span> <span class="n">name</span><span class="o">==</span><span class="s2">&quot;blah&quot;</span>
+    <span class="k">def</span> <span class="nf">makeChannel</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">name</span><span class="p">,</span> <span class="n">peer</span><span class="p">):</span>
+        <span class="k">assert</span> <span class="n">name</span><span class="o">==</span><span class="s2">&quot;blah&quot;</span>
+        <span class="k">return</span> <span class="bp">self</span><span class="o">.</span><span class="n">pv</span>
+<span class="n">provider</span> <span class="o">=</span> <span class="n">DynamicProvider</span><span class="p">(</span><span class="s2">&quot;arbitrary&quot;</span><span class="p">,</span> <span class="n">DynHandler</span><span class="p">())</span>
+<span class="n">server</span> <span class="o">=</span> <span class="n">Server</span><span class="p">(</span><span class="n">providers</span><span class="o">=</span><span class="p">[</span><span class="n">provider</span><span class="p">])</span>
+</pre></div>
+</div>
+<dl class="attribute">
+<dt id="p4p.server.DynamicProvider.NotYet">
+<code class="descname">NotYet</code><em class="property"> = b'nocache'</em><a class="headerlink" href="#p4p.server.DynamicProvider.NotYet" title="Permalink to this definition">¶</a></dt>
+<dd></dd></dl>
+
+</dd></dl>
+
+<div class="section" id="dynamicprovider-handler-interface">
+<h3>DynamicProvider Handler Interface<a class="headerlink" href="#dynamicprovider-handler-interface" title="Permalink to this headline">¶</a></h3>
+<p>A <a class="reference internal" href="#p4p.server.DynamicProvider" title="p4p.server.DynamicProvider"><code class="xref py py-class docutils literal notranslate"><span class="pre">DynamicProvider</span></code></a> Handler class will define the following:</p>
+<dl class="class">
+<dt id="p4p.server.ProviderHandler">
+<em class="property">class </em><code class="descclassname">p4p.server.</code><code class="descname">ProviderHandler</code><a class="headerlink" href="#p4p.server.ProviderHandler" title="Permalink to this definition">¶</a></dt>
+<dd><dl class="method">
+<dt id="p4p.server.ProviderHandler.testChannel">
+<code class="descname">testChannel</code><span class="sig-paren">(</span><em>pvname</em><span class="sig-paren">)</span><a class="headerlink" href="#p4p.server.ProviderHandler.testChannel" title="Permalink to this definition">¶</a></dt>
+<dd><p>Called with a PV name which some client is searching for.</p>
+<table class="docutils field-list" frame="void" rules="none">
+<col class="field-name" />
+<col class="field-body" />
+<tbody valign="top">
+<tr class="field-odd field"><th class="field-name">Returns:</th><td class="field-body">True to claim this PV.  False to “permenently” disclaim this PV.  Or <a class="reference internal" href="#p4p.server.DynamicProvider.NotYet" title="p4p.server.DynamicProvider.NotYet"><code class="xref py py-attr docutils literal notranslate"><span class="pre">DynamicProvider.NotYet</span></code></a> to temporarily disclaim.</td>
+</tr>
+</tbody>
+</table>
+<p>Each DynamicProvider maintains a cache of negative search results (when <code class="docutils literal notranslate"><span class="pre">`testChannel()==False`</span></code>)
+to avoid extra work on a subnet with many clients searching for non-existant PVs.
+If it is desirable to defeat this behavour, for example as part of lazy pv creation,
+then testChannel() can return <a class="reference internal" href="#p4p.server.DynamicProvider.NotYet" title="p4p.server.DynamicProvider.NotYet"><code class="xref py py-attr docutils literal notranslate"><span class="pre">DynamicProvider.NotYet</span></code></a> instead of False.</p>
+</dd></dl>
+
+<dl class="method">
+<dt>
+<code class="descname">makeChannel(pvname, src):</code></dt>
+<dd><p>Called when a client attempts to create a Channel for some PV.
+The object which is returned will not be collected until
+the client closes the Channel or becomes disconnected.</p>
+<table class="docutils field-list" frame="void" rules="none">
+<col class="field-name" />
+<col class="field-body" />
+<tbody valign="top">
+<tr class="field-odd field"><th class="field-name">Returns:</th><td class="field-body">A <code class="xref py py-class docutils literal notranslate"><span class="pre">SharedPV</span></code> instance.</td>
+</tr>
+</tbody>
+</table>
+</dd></dl>
+
+</dd></dl>
+
+</div>
+<div class="section" id="serveroperation">
+<h3>ServerOperation<a class="headerlink" href="#serveroperation" title="Permalink to this headline">¶</a></h3>
+<p>This class is passed to SharedPV handler <a class="reference internal" href="internal.html#p4p.server.raw.Handler.put" title="p4p.server.raw.Handler.put"><code class="xref any py py-meth docutils literal notranslate"><span class="pre">Handler.put()</span></code></a> and <a class="reference internal" href="internal.html#p4p.server.raw.Handler.rpc" title="p4p.server.raw.Handler.rpc"><code class="xref any py py-meth docutils literal notranslate"><span class="pre">Handler.rpc()</span></code></a> methods.</p>
+<dl class="class">
+<dt id="p4p.server.ServerOperation">
+<em class="property">class </em><code class="descclassname">p4p.server.</code><code class="descname">ServerOperation</code><a class="headerlink" href="#p4p.server.ServerOperation" title="Permalink to this definition">¶</a></dt>
+<dd><dl class="method">
+<dt id="p4p.server.ServerOperation.pvRequest">
+<code class="descname">pvRequest</code><span class="sig-paren">(</span><span class="sig-paren">)</span> &#x2192; Value<a class="headerlink" href="#p4p.server.ServerOperation.pvRequest" title="Permalink to this definition">¶</a></dt>
+<dd><p>Access to client provided request modifiers</p>
+</dd></dl>
+
+<dl class="method">
+<dt id="p4p.server.ServerOperation.value">
+<code class="descname">value</code><span class="sig-paren">(</span><span class="sig-paren">)</span> &#x2192; Value<a class="headerlink" href="#p4p.server.ServerOperation.value" title="Permalink to this definition">¶</a></dt>
+<dd><p>Access to client provided input/argument value</p>
+</dd></dl>
+
+<dl class="method">
+<dt id="p4p.server.ServerOperation.done">
+<code class="descname">done</code><span class="sig-paren">(</span><em>value=None</em>, <em>error=None</em><span class="sig-paren">)</span><a class="headerlink" href="#p4p.server.ServerOperation.done" title="Permalink to this definition">¶</a></dt>
+<dd><p>Complete in-progress operation.
+Provide a value=Value (RPC) or value=None (Put) to indicate success.  Provide error=str to signal that an error occured.</p>
+</dd></dl>
+
+<dl class="method">
+<dt id="p4p.server.ServerOperation.info">
+<code class="descname">info</code><span class="sig-paren">(</span><em>msg</em><span class="sig-paren">)</span><a class="headerlink" href="#p4p.server.ServerOperation.info" title="Permalink to this definition">¶</a></dt>
+<dd><p>Send remote info message</p>
+</dd></dl>
+
+<dl class="method">
+<dt id="p4p.server.ServerOperation.warn">
+<code class="descname">warn</code><span class="sig-paren">(</span><em>msg</em><span class="sig-paren">)</span><a class="headerlink" href="#p4p.server.ServerOperation.warn" title="Permalink to this definition">¶</a></dt>
+<dd><p>Send remote warning message</p>
+</dd></dl>
+
+<dl class="method">
+<dt id="p4p.server.ServerOperation.name">
+<code class="descname">name</code><span class="sig-paren">(</span><span class="sig-paren">)</span> &#x2192; str<a class="headerlink" href="#p4p.server.ServerOperation.name" title="Permalink to this definition">¶</a></dt>
+<dd><p>Channel name through which this Operation is made.</p>
+</dd></dl>
+
+<dl class="method">
+<dt id="p4p.server.ServerOperation.peer">
+<code class="descname">peer</code><span class="sig-paren">(</span><span class="sig-paren">)</span> &#x2192; str<a class="headerlink" href="#p4p.server.ServerOperation.peer" title="Permalink to this definition">¶</a></dt>
+<dd><p>A information about the peer, or None.</p>
+</dd></dl>
+
+</dd></dl>
+
+</div>
+</div>
+<div class="section" id="sharedpv-concurrency-options">
+<h2>SharedPV concurrency options<a class="headerlink" href="#sharedpv-concurrency-options" title="Permalink to this headline">¶</a></h2>
+<p>There is a SharedPV class for each of other three concurrency models
+supported: OS threading, asyncio coroutines, and cothreads.
+All have the same methods as <a class="reference internal" href="#p4p.server.thread.SharedPV" title="p4p.server.thread.SharedPV"><code class="xref py py-class docutils literal notranslate"><span class="pre">thread.SharedPV</span></code></a>.</p>
+<p>The difference between <a class="reference internal" href="#p4p.server.thread.SharedPV" title="p4p.server.thread.SharedPV"><code class="xref py py-class docutils literal notranslate"><span class="pre">thread.SharedPV</span></code></a>, <a class="reference internal" href="#p4p.server.asyncio.SharedPV" title="p4p.server.asyncio.SharedPV"><code class="xref py py-class docutils literal notranslate"><span class="pre">asyncio.SharedPV</span></code></a>, and <a class="reference internal" href="#p4p.server.cothread.SharedPV" title="p4p.server.cothread.SharedPV"><code class="xref py py-class docutils literal notranslate"><span class="pre">cothread.SharedPV</span></code></a>
+is the context in which the handler methods are called (an OS thread, an asyncio coroutine, or a cothread).
+This distinction determines how blocking operations may be carried out.</p>
+<p>Note that <a class="reference internal" href="#p4p.server.thread.SharedPV" title="p4p.server.thread.SharedPV"><code class="xref py py-class docutils literal notranslate"><span class="pre">thread.SharedPV</span></code></a> uses a fixed size thread pool.
+This limits the number of concurrent callbacks.</p>
+</div>
+<div class="section" id="sharedpv-api">
+<h2>SharedPV API<a class="headerlink" href="#sharedpv-api" title="Permalink to this headline">¶</a></h2>
+<dl class="class">
+<dt id="p4p.server.thread.SharedPV">
+<em class="property">class </em><code class="descclassname">p4p.server.thread.</code><code class="descname">SharedPV</code><span class="sig-paren">(</span><em>queue=None</em>, <em>**kws</em><span class="sig-paren">)</span><a class="reference internal" href="_modules/p4p/server/thread.html#SharedPV"><span class="viewcode-link">[source]</span></a><a class="headerlink" href="#p4p.server.thread.SharedPV" title="Permalink to this definition">¶</a></dt>
+<dd><p>Shared state Process Variable.  Callback based implementation.</p>
+<div class="admonition note">
+<p class="first admonition-title">Note</p>
+<p class="last">if initial=None, the PV is initially <strong>closed</strong> and
+must be <a class="reference internal" href="#p4p.server.thread.SharedPV.open" title="p4p.server.thread.SharedPV.open"><code class="xref py py-meth docutils literal notranslate"><span class="pre">open()</span></code></a>’d before any access is possible.</p>
+</div>
+<table class="docutils field-list" frame="void" rules="none">
+<col class="field-name" />
+<col class="field-body" />
+<tbody valign="top">
+<tr class="field-odd field"><th class="field-name">Parameters:</th><td class="field-body"><ul class="first last simple">
+<li><strong>handler</strong> – A object which will receive callbacks when eg. a Put operation is requested.
+May be omitted if the decorator syntax is used.</li>
+<li><strong>initial</strong> (<a class="reference internal" href="values.html#p4p.Value" title="p4p.Value"><em>Value</em></a>) – An initial Value for this PV.  If omitted, <a class="reference internal" href="#p4p.server.thread.SharedPV.open" title="p4p.server.thread.SharedPV.open"><code class="xref py py-meth docutils literal notranslate"><span class="pre">open()</span></code></a> s must be called before client access is possible.</li>
+<li><strong>nt</strong> – An object with methods wrap() and unwrap().  eg <a class="reference internal" href="nt.html#p4p.nt.NTScalar" title="p4p.nt.NTScalar"><code class="xref py py-class docutils literal notranslate"><span class="pre">p4p.nt.NTScalar</span></code></a>.</li>
+<li><strong>wrap</strong> (<em>callable</em>) – As an alternative to providing ‘nt=’, A callable to transform Values passed to open() and post().</li>
+<li><strong>unwrap</strong> (<em>callable</em>) – As an alternative to providing ‘nt=’, A callable to transform Values returned Operations in Put/RPC handlers.</li>
+<li><strong>queue</strong> (<a class="reference internal" href="rpc.html#p4p.rpc.WorkQueue" title="p4p.rpc.WorkQueue"><em>WorkQueue</em></a>) – The threaded <code class="xref py py-class docutils literal notranslate"><span class="pre">WorkQueue</span></code> on which handlers will be run.</li>
+<li><strong>options</strong> (<em>dict</em>) – A dictionary of configuration options.</li>
+</ul>
+</td>
+</tr>
+</tbody>
+</table>
+<p>Creating a PV in the open state, with no handler for Put or RPC (attempts will error).</p>
+<div class="highlight-default notranslate"><div class="highlight"><pre><span></span><span class="kn">from</span> <span class="nn">p4p.nt</span> <span class="k">import</span> <span class="n">NTScalar</span>
+<span class="n">pv</span> <span class="o">=</span> <span class="n">SharedPV</span><span class="p">(</span><span class="n">nt</span><span class="o">=</span><span class="n">NTScalar</span><span class="p">(</span><span class="s1">&#39;d&#39;</span><span class="p">),</span> <span class="n">value</span><span class="o">=</span><span class="mf">0.0</span><span class="p">)</span>
+<span class="c1"># ... later</span>
+<span class="n">pv</span><span class="o">.</span><span class="n">post</span><span class="p">(</span><span class="mf">1.0</span><span class="p">)</span>
+</pre></div>
+</div>
+<p>The full form of a handler object is:</p>
+<div class="highlight-default notranslate"><div class="highlight"><pre><span></span><span class="k">class</span> <span class="nc">MyHandler</span><span class="p">:</span>
+    <span class="k">def</span> <span class="nf">put</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">op</span><span class="p">):</span>
+        <span class="k">pass</span>
+    <span class="k">def</span> <span class="nf">rpc</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">op</span><span class="p">):</span>
+        <span class="k">pass</span>
+    <span class="k">def</span> <span class="nf">onFirstConnect</span><span class="p">(</span><span class="bp">self</span><span class="p">):</span> <span class="c1"># may be omitted</span>
+        <span class="k">pass</span>
+    <span class="k">def</span> <span class="nf">onLastDisconnect</span><span class="p">(</span><span class="bp">self</span><span class="p">):</span> <span class="c1"># may be omitted</span>
+        <span class="k">pass</span>
+<span class="n">pv</span> <span class="o">=</span> <span class="n">SharedPV</span><span class="p">(</span><span class="n">MyHandler</span><span class="p">())</span>
+</pre></div>
+</div>
+<p>Alternatively, decorators may be used.</p>
+<div class="highlight-default notranslate"><div class="highlight"><pre><span></span><span class="n">pv</span> <span class="o">=</span> <span class="n">SharedPV</span><span class="p">()</span>
+<span class="nd">@pv</span><span class="o">.</span><span class="n">put</span>
+<span class="k">def</span> <span class="nf">onPut</span><span class="p">(</span><span class="n">pv</span><span class="p">,</span> <span class="n">op</span><span class="p">):</span>
+    <span class="k">pass</span>
+</pre></div>
+</div>
+<dl class="method">
+<dt id="p4p.server.thread.SharedPV.open">
+<code class="descname">open</code><span class="sig-paren">(</span><em>value</em>, <em>nt=None</em>, <em>wrap=None</em>, <em>unwrap=None</em><span class="sig-paren">)</span><a class="reference internal" href="_modules/p4p/server/raw.html#SharedPV.open"><span class="viewcode-link">[source]</span></a><a class="headerlink" href="#p4p.server.thread.SharedPV.open" title="Permalink to this definition">¶</a></dt>
+<dd><p>Mark the PV as opened an provide its initial value.
+This initial value is later updated with post().</p>
+<table class="docutils field-list" frame="void" rules="none">
+<col class="field-name" />
+<col class="field-body" />
+<tbody valign="top">
+<tr class="field-odd field"><th class="field-name">Parameters:</th><td class="field-body"><strong>value</strong> – A Value, or appropriate object (see nt= and wrap= of the constructor).</td>
+</tr>
+</tbody>
+</table>
+<p>Any clients which have begun connecting which began connecting while
+this PV was in the close’d state will complete connecting.</p>
+<p>Only those fields of the value which are marked as changed will be stored.</p>
+</dd></dl>
+
+<dl class="method">
+<dt id="p4p.server.thread.SharedPV.close">
+<code class="descname">close</code><span class="sig-paren">(</span><em>destroy=False</em>, <em>sync=False</em>, <em>timeout=None</em><span class="sig-paren">)</span><a class="reference internal" href="_modules/p4p/server/thread.html#SharedPV.close"><span class="viewcode-link">[source]</span></a><a class="headerlink" href="#p4p.server.thread.SharedPV.close" title="Permalink to this definition">¶</a></dt>
+<dd><p>Close PV, disconnecting any clients.</p>
+<table class="docutils field-list" frame="void" rules="none">
+<col class="field-name" />
+<col class="field-body" />
+<tbody valign="top">
+<tr class="field-odd field"><th class="field-name">Parameters:</th><td class="field-body"><ul class="first last simple">
+<li><strong>destroy</strong> (<em>bool</em>) – Indicate “permanent” closure.  Current clients will not see subsequent open().</li>
+<li><strong>sync</strong> (<em>bool</em>) – When block until any pending onLastDisconnect() is delivered (timeout applies).</li>
+<li><strong>timeout</strong> (<em>float</em>) – Applies only when sync=True.  None for no timeout, otherwise a non-negative floating point value.</li>
+</ul>
+</td>
+</tr>
+</tbody>
+</table>
+<p>close() with destory=True or sync=True will not prevent clients from re-connecting.
+New clients may prevent sync=True from succeeding.
+Prevent reconnection by __first__ stopping the Server, removing with <code class="xref py py-meth docutils literal notranslate"><span class="pre">StaticProvider.remove()</span></code>,
+or preventing a <code class="xref py py-class docutils literal notranslate"><span class="pre">DynamicProvider</span></code> from making new channels to this SharedPV.</p>
+</dd></dl>
+
+<dl class="method">
+<dt id="p4p.server.thread.SharedPV.post">
+<code class="descname">post</code><span class="sig-paren">(</span><em>value</em><span class="sig-paren">)</span><a class="reference internal" href="_modules/p4p/server/raw.html#SharedPV.post"><span class="viewcode-link">[source]</span></a><a class="headerlink" href="#p4p.server.thread.SharedPV.post" title="Permalink to this definition">¶</a></dt>
+<dd><p>Provide an update to the Value of this PV.</p>
+<table class="docutils field-list" frame="void" rules="none">
+<col class="field-name" />
+<col class="field-body" />
+<tbody valign="top">
+<tr class="field-odd field"><th class="field-name">Parameters:</th><td class="field-body"><strong>value</strong> – A Value, or appropriate object (see nt= and wrap= of the constructor).</td>
+</tr>
+</tbody>
+</table>
+<p>Only those fields of the value which are marked as changed will be stored.</p>
+</dd></dl>
+
+<dl class="method">
+<dt id="p4p.server.thread.SharedPV.current">
+<code class="descname">current</code><span class="sig-paren">(</span><span class="sig-paren">)</span> &#x2192; Value<a class="reference internal" href="_modules/p4p/server/raw.html#SharedPV.current"><span class="viewcode-link">[source]</span></a><a class="headerlink" href="#p4p.server.thread.SharedPV.current" title="Permalink to this definition">¶</a></dt>
+<dd><p>The current Value of this PV.  The result of the initial value, and all accumulated post() calls.</p>
+</dd></dl>
+
+</dd></dl>
+
+<div class="section" id="sharedpv-handler-interface">
+<h3>SharedPV Handler Interface<a class="headerlink" href="#sharedpv-handler-interface" title="Permalink to this headline">¶</a></h3>
+<dl class="class">
+<dt id="p4p.server.thread.Handler">
+<em class="property">class </em><code class="descclassname">p4p.server.thread.</code><code class="descname">Handler</code><a class="reference internal" href="_modules/p4p/server/raw.html#Handler"><span class="viewcode-link">[source]</span></a><a class="headerlink" href="#p4p.server.thread.Handler" title="Permalink to this definition">¶</a></dt>
+<dd><p>Skeleton of SharedPV Handler</p>
+<p>Use of this as a base class is optional.</p>
+<dl class="method">
+<dt id="p4p.server.thread.Handler.put">
+<code class="descname">put</code><span class="sig-paren">(</span><em>pv</em>, <em>op</em><span class="sig-paren">)</span><a class="reference internal" href="_modules/p4p/server/raw.html#Handler.put"><span class="viewcode-link">[source]</span></a><a class="headerlink" href="#p4p.server.thread.Handler.put" title="Permalink to this definition">¶</a></dt>
+<dd><p>Called each time a client issues a Put
+operation on this Channel.</p>
+<table class="docutils field-list" frame="void" rules="none">
+<col class="field-name" />
+<col class="field-body" />
+<tbody valign="top">
+<tr class="field-odd field"><th class="field-name">Parameters:</th><td class="field-body"><ul class="first last simple">
+<li><strong>pv</strong> (<a class="reference internal" href="internal.html#p4p.server.raw.SharedPV" title="p4p.server.raw.SharedPV"><em>SharedPV</em></a>) – The <a class="reference internal" href="#p4p.server.thread.SharedPV" title="p4p.server.thread.SharedPV"><code class="xref py py-class docutils literal notranslate"><span class="pre">SharedPV</span></code></a> which this Handler is associated with.</li>
+<li><strong>op</strong> (<a class="reference internal" href="internal.html#p4p._p4p.ServerOperation" title="p4p._p4p.ServerOperation"><em>ServerOperation</em></a>) – The operation being initiated.</li>
+</ul>
+</td>
+</tr>
+</tbody>
+</table>
+</dd></dl>
+
+<dl class="method">
+<dt id="p4p.server.thread.Handler.rpc">
+<code class="descname">rpc</code><span class="sig-paren">(</span><em>pv</em>, <em>op</em><span class="sig-paren">)</span><a class="reference internal" href="_modules/p4p/server/raw.html#Handler.rpc"><span class="viewcode-link">[source]</span></a><a class="headerlink" href="#p4p.server.thread.Handler.rpc" title="Permalink to this definition">¶</a></dt>
+<dd><p>Called each time a client issues a Remote Procedure Call
+operation on this Channel.</p>
+<table class="docutils field-list" frame="void" rules="none">
+<col class="field-name" />
+<col class="field-body" />
+<tbody valign="top">
+<tr class="field-odd field"><th class="field-name">Parameters:</th><td class="field-body"><ul class="first last simple">
+<li><strong>pv</strong> (<a class="reference internal" href="internal.html#p4p.server.raw.SharedPV" title="p4p.server.raw.SharedPV"><em>SharedPV</em></a>) – The <a class="reference internal" href="#p4p.server.thread.SharedPV" title="p4p.server.thread.SharedPV"><code class="xref py py-class docutils literal notranslate"><span class="pre">SharedPV</span></code></a> which this Handler is associated with.</li>
+<li><strong>op</strong> (<a class="reference internal" href="internal.html#p4p._p4p.ServerOperation" title="p4p._p4p.ServerOperation"><em>ServerOperation</em></a>) – The operation being initiated.</li>
+</ul>
+</td>
+</tr>
+</tbody>
+</table>
+</dd></dl>
+
+<dl class="method">
+<dt id="p4p.server.thread.Handler.onFirstConnect">
+<code class="descname">onFirstConnect</code><span class="sig-paren">(</span><em>pv</em><span class="sig-paren">)</span><a class="reference internal" href="_modules/p4p/server/raw.html#Handler.onFirstConnect"><span class="viewcode-link">[source]</span></a><a class="headerlink" href="#p4p.server.thread.Handler.onFirstConnect" title="Permalink to this definition">¶</a></dt>
+<dd><p>Called when the first Client channel is created.</p>
+<table class="docutils field-list" frame="void" rules="none">
+<col class="field-name" />
+<col class="field-body" />
+<tbody valign="top">
+<tr class="field-odd field"><th class="field-name">Parameters:</th><td class="field-body"><strong>pv</strong> (<a class="reference internal" href="internal.html#p4p.server.raw.SharedPV" title="p4p.server.raw.SharedPV"><em>SharedPV</em></a>) – The <a class="reference internal" href="#p4p.server.thread.SharedPV" title="p4p.server.thread.SharedPV"><code class="xref py py-class docutils literal notranslate"><span class="pre">SharedPV</span></code></a> which this Handler is associated with.</td>
+</tr>
+</tbody>
+</table>
+</dd></dl>
+
+<dl class="method">
+<dt id="p4p.server.thread.Handler.onLastDisconnect">
+<code class="descname">onLastDisconnect</code><span class="sig-paren">(</span><em>pv</em><span class="sig-paren">)</span><a class="reference internal" href="_modules/p4p/server/raw.html#Handler.onLastDisconnect"><span class="viewcode-link">[source]</span></a><a class="headerlink" href="#p4p.server.thread.Handler.onLastDisconnect" title="Permalink to this definition">¶</a></dt>
+<dd><p>Called when the last Client channel is closed.</p>
+<table class="docutils field-list" frame="void" rules="none">
+<col class="field-name" />
+<col class="field-body" />
+<tbody valign="top">
+<tr class="field-odd field"><th class="field-name">Parameters:</th><td class="field-body"><strong>pv</strong> (<a class="reference internal" href="internal.html#p4p.server.raw.SharedPV" title="p4p.server.raw.SharedPV"><em>SharedPV</em></a>) – The <a class="reference internal" href="#p4p.server.thread.SharedPV" title="p4p.server.thread.SharedPV"><code class="xref py py-class docutils literal notranslate"><span class="pre">SharedPV</span></code></a> which this Handler is associated with.</td>
+</tr>
+</tbody>
+</table>
+</dd></dl>
+
+</dd></dl>
+
+</div>
+<div class="section" id="asyncio-or-cothread">
+<h3>asyncio or cothread<a class="headerlink" href="#asyncio-or-cothread" title="Permalink to this headline">¶</a></h3>
+<dl class="class">
+<dt id="p4p.server.asyncio.SharedPV">
+<em class="property">class </em><code class="descclassname">p4p.server.asyncio.</code><code class="descname">SharedPV</code><a class="reference internal" href="_modules/p4p/server/asyncio.html#SharedPV"><span class="viewcode-link">[source]</span></a><a class="headerlink" href="#p4p.server.asyncio.SharedPV" title="Permalink to this definition">¶</a></dt>
+<dd><p>Same arguments as <code class="xref py py-class docutils literal notranslate"><span class="pre">thread.SharedPV</span></code> except that queue= is replaced with loop= .</p>
+<table class="docutils field-list" frame="void" rules="none">
+<col class="field-name" />
+<col class="field-body" />
+<tbody valign="top">
+<tr class="field-odd field"><th class="field-name">Parameters:</th><td class="field-body"><strong>loop</strong> – An asyncio event loop, or None to use the default.</td>
+</tr>
+</tbody>
+</table>
+</dd></dl>
+
+<dl class="class">
+<dt id="p4p.server.cothread.SharedPV">
+<em class="property">class </em><code class="descclassname">p4p.server.cothread.</code><code class="descname">SharedPV</code><a class="headerlink" href="#p4p.server.cothread.SharedPV" title="Permalink to this definition">¶</a></dt>
+<dd></dd></dl>
+
+</div>
+<div class="section" id="global-provider-registry">
+<h3>Global Provider registry<a class="headerlink" href="#global-provider-registry" title="Permalink to this headline">¶</a></h3>
+<p>If it becomes necessary for a Provider to be included in a server which is started
+outside of Python code, then it must be placed in the global provider registry
+with installProvider().</p>
+<dl class="function">
+<dt id="p4p.server.installProvider">
+<code class="descclassname">p4p.server.</code><code class="descname">installProvider</code><span class="sig-paren">(</span><em>&quot;name&quot;</em>, <em>provider</em><span class="sig-paren">)</span><a class="headerlink" href="#p4p.server.installProvider" title="Permalink to this definition">¶</a></dt>
+<dd><p>Install a new Server Channel provider</p>
+</dd></dl>
+
+<dl class="function">
+<dt id="p4p.server.removeProvider">
+<code class="descclassname">p4p.server.</code><code class="descname">removeProvider</code><span class="sig-paren">(</span><em>&quot;name&quot;</em><span class="sig-paren">)</span><a class="headerlink" href="#p4p.server.removeProvider" title="Permalink to this definition">¶</a></dt>
+<dd><p>Remove a previously added Server Channel provider</p>
+</dd></dl>
+
+</div>
+</div>
+</div>
+
+
+          </div>
+        </div>
+      </div>
+      <div class="sphinxsidebar" role="navigation" aria-label="main navigation">
+        <div class="sphinxsidebarwrapper">
+<h1 class="logo"><a href="index.html">P4P</a></h1>
+
+
+
+
+
+
+
+
+<h3>Navigation</h3>
+<ul class="current">
+<li class="toctree-l1"><a class="reference internal" href="starting.html">Quick Start</a></li>
+<li class="toctree-l1"><a class="reference internal" href="overview.html">Overview</a></li>
+<li class="toctree-l1"><a class="reference internal" href="building.html">Building</a></li>
+<li class="toctree-l1"><a class="reference internal" href="client.html">Client API</a></li>
+<li class="toctree-l1"><a class="reference internal" href="nt.html">Common Types</a></li>
+<li class="toctree-l1"><a class="reference internal" href="values.html">Working with Value and Type</a></li>
+<li class="toctree-l1 current"><a class="current reference internal" href="#">Server API</a><ul>
+<li class="toctree-l2"><a class="reference internal" href="#running-a-pva-server">Running a PVA Server</a></li>
+<li class="toctree-l2"><a class="reference internal" href="#id1">Server API</a></li>
+<li class="toctree-l2"><a class="reference internal" href="#sharedpv-concurrency-options">SharedPV concurrency options</a></li>
+<li class="toctree-l2"><a class="reference internal" href="#sharedpv-api">SharedPV API</a></li>
+</ul>
+</li>
+<li class="toctree-l1"><a class="reference internal" href="rpc.html">RPC Server Helpers</a></li>
+<li class="toctree-l1"><a class="reference internal" href="internal.html">Internal API</a></li>
+<li class="toctree-l1"><a class="reference internal" href="gw.html">PVA Gateway</a></li>
+</ul>
+
+<div class="relations">
+<h3>Related Topics</h3>
+<ul>
+  <li><a href="index.html">Documentation overview</a><ul>
+      <li>Previous: <a href="values.html" title="previous chapter">Working with Value and Type</a></li>
+      <li>Next: <a href="rpc.html" title="next chapter">RPC Server Helpers</a></li>
+  </ul></li>
+</ul>
+</div>
+<div id="searchbox" style="display: none" role="search">
+  <h3>Quick search</h3>
+    <div class="searchformwrapper">
+    <form class="search" action="search.html" method="get">
+      <input type="text" name="q" />
+      <input type="submit" value="Go" />
+      <input type="hidden" name="check_keywords" value="yes" />
+      <input type="hidden" name="area" value="default" />
+    </form>
+    </div>
+</div>
+<script type="text/javascript">$('#searchbox').show(0);</script>
+        </div>
+      </div>
+      <div class="clearer"></div>
+    </div>
+    <div class="footer">
+      &copy;2021, Michael Davidsaver.
+      
+      |
+      Powered by <a href="http://sphinx-doc.org/">Sphinx 1.8.4</a>
+      &amp; <a href="https://github.com/bitprophet/alabaster">Alabaster 0.7.8</a>
+      
+      |
+      <a href="_sources/server.rst.txt"
+          rel="nofollow">Page source</a>
+    </div>
+
+    
+
+    
+  </body>
+</html>
